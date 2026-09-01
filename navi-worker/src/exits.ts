@@ -69,7 +69,7 @@ out body;`;
 			// Overpass's Apache front-end 406s requests with no Accept header
 			// (which fetch sends none of by default) — curl gets a free pass
 			// because it sets one implicitly, but this needs it explicit.
-			headers: { 'Content-Type': 'text/plain', Accept: 'application/json', 'User-Agent': 'ubahn-help-app (navi-worker)' },
+			headers: { 'Content-Type': 'text/plain', Accept: 'application/json', 'User-Agent': 'navi-app (navi-worker)' },
 			body: query,
 			// The public Overpass instance is noticeably slower than VBB's API —
 			// give it real room past its own internal [timeout:15] before we
