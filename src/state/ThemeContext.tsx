@@ -1,12 +1,14 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
-export type Theme = 'dark' | 'light';
+export type Theme = 'dark' | 'light' | 'halloween';
 
 const STORAGE_KEY = 'navi-theme';
+const VALID_THEMES: Theme[] = ['dark', 'light', 'halloween'];
 
 function getInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'dark';
-  return window.localStorage.getItem(STORAGE_KEY) === 'light' ? 'light' : 'dark';
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  return (VALID_THEMES as string[]).includes(stored ?? '') ? (stored as Theme) : 'dark';
 }
 
 interface ThemeContextValue {

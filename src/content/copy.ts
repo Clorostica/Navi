@@ -20,21 +20,24 @@ export const copy = {
       email: "Email address",
       password: "Password",
       confirmPassword: "Confirm password",
+      code: "Verification code",
     },
     passwordGuidance: "At least 8 characters, with one number.",
     termsText:
       "By creating an account, you agree to Navi's Terms of Service and Privacy Policy.",
     button: "Create account",
+    verifyButton: "Verify",
     errors: {
       emailInUse: "That email's already registered. Try logging in instead.",
       invalidEmail: "That email address doesn't look quite right.",
       weakPassword: "Your password needs at least 8 characters and a number.",
       passwordMismatch: "Those passwords don't match. Give it another go.",
       missingFields: "Looks like something's missing above.",
+      missingCode: "Enter the code we sent you.",
       generic: "Something went wrong on our end. Please try again.",
     },
     success: "You're all set. Welcome to Navi.",
-    checkEmail: "Almost there — we've sent a confirmation link to {email}. Tap it to finish setting up your account.",
+    checkEmail: "Almost there — we've sent a verification code to {email}. Enter it below to finish setting up your account.",
   },
 
   // 3. LOG IN
@@ -54,6 +57,42 @@ export const copy = {
     },
   },
 
+  // 3b. FORGOT PASSWORD
+  forgotPassword: {
+    title: "Forgot your password?",
+    subtext: "Enter your email and we'll send you a link to reset it.",
+    fields: {
+      email: "Email address",
+    },
+    button: "Send reset link",
+    checkEmail: "If {email} has an account, we've sent a link to reset the password. Check your inbox.",
+    backToLogin: "Back to log in",
+    errors: {
+      missingFields: "Enter your email address to continue.",
+      invalidEmail: "That email address doesn't look quite right.",
+    },
+  },
+
+  // 3c. RESET PASSWORD
+  resetPassword: {
+    title: "Choose a new password",
+    subtext: "Make it something you'll remember.",
+    fields: {
+      password: "New password",
+      confirmPassword: "Confirm new password",
+    },
+    passwordGuidance: "At least 8 characters, with one number.",
+    button: "Reset password",
+    success: "Your password's been reset. You can log in now.",
+    goToLogin: "Go to log in",
+    errors: {
+      missingFields: "Looks like something's missing above.",
+      weakPassword: "Your password needs at least 8 characters and a number.",
+      passwordMismatch: "Those passwords don't match. Give it another go.",
+      generic: "That reset link is invalid or expired. Please request a new one.",
+    },
+  },
+
   // 4. HOME SCREEN
   home: {
     greeting: "How can we help?",
@@ -68,6 +107,15 @@ export const copy = {
         description: "Need assistance right now? We're here for you.",
       },
     },
+  },
+
+  // 4B. FEED SCREEN
+  feed: {
+    title: "What's happening now",
+    subtitle: "Live incidents and delays across the network.",
+    loading: "Loading the latest…",
+    emptyState: "No incidents reported recently — that's good news.",
+    loadMore: "Load more",
   },
 
   // 5. REPORT CATEGORY SCREEN
@@ -106,6 +154,26 @@ export const copy = {
       damage: {
         title: "Damage or infrastructure issue",
         description: "Broken equipment or something that needs fixing.",
+      },
+      fight: {
+        title: "Fight or physical altercation",
+        description: "People fighting or about to.",
+      },
+      aggressivePerson: {
+        title: "Aggressive person",
+        description: "Someone is behaving aggressively toward others.",
+      },
+      smoke: {
+        title: "Smoke or fire",
+        description: "Smoke or fire in a train or station.",
+      },
+      brokenDoor: {
+        title: "Broken train door",
+        description: "A train door that won't open or close properly.",
+      },
+      abandonedObject: {
+        title: "Abandoned object",
+        description: "An unattended bag or item that looks out of place.",
       },
       other: {
         title: "Something else",
@@ -150,6 +218,7 @@ export const copy = {
     optionalDetails: "Anything else we should know? (optional)",
     exampleText:
       "For example: \"Two people are arguing loudly near the platform doors at Alexanderplatz.\"",
+    tooShortError: "Please add a bit more detail (at least {min} characters).",
   },
 
   // 8. SEVERITY SCREEN
@@ -229,6 +298,58 @@ export const copy = {
         title: "Immediate danger",
         description: "If you or someone else is in danger right now, contact emergency services.",
       },
+      companion: {
+        title: "Walk with me",
+        description: "Start a Companion Mode session so we can check in on you.",
+      },
+    },
+  },
+
+  // 12A. RADAR HEATMAP SCREEN
+  radar: {
+    title: "Incident radar",
+    subtitle: "Where reports have concentrated in the last 24 hours.",
+    empty: "No recent reports — the network looks quiet right now.",
+    legend: {
+      red: "High severity",
+      yellow: "Medium severity",
+      green: "Low severity",
+    },
+  },
+
+  // 12B. STATION SAFETY SCORE
+  stationSafety: {
+    labels: {
+      green: "Relatively safe",
+      yellow: "Be more aware",
+      red: "High caution",
+      noData: "No recent reports",
+    },
+  },
+
+  // 12B-2. EXIT ADVISOR
+  exitAdvisor: {
+    title: "Is it safe to get off here?",
+    nightNote: "Late night — fewer people around than daytime.",
+    loading: "Checking exits…",
+    exitsLabel: "Exits at this station",
+    nearPolice: "near a police station",
+    recommended: "If you're uneasy, Exit {ref} is near a police station{streets}.",
+    noData: "No exit data mapped for this station yet.",
+    attribution: "Exit locations from OpenStreetMap contributors.",
+  },
+
+  // 12C. NEARBY ALERTS
+  nearbyAlert: {
+    reportedAt: "reported at {station}",
+    tips: {
+      theft: "Stay aware of your belongings.",
+      harassment: "Stay alert, and consider a different route.",
+      suspiciousActivity: "Stay alert in the area.",
+      medical: "Help may be needed nearby.",
+      fight: "Consider a different car or route until it clears.",
+      aggressivePerson: "Stay alert, and keep your distance.",
+      smoke: "Move away from the area and alert staff if you can.",
     },
   },
 
@@ -256,6 +377,14 @@ export const copy = {
     },
   },
 
+  // 13B. REPORT DETAIL SCREEN
+  reportDetail: {
+    title: "Report",
+    timelineTitle: "Updates",
+    timelineEmpty: "No updates yet.",
+    loading: "Loading…",
+  },
+
   // 14. PROFILE
   profile: {
     title: "Profile",
@@ -263,13 +392,75 @@ export const copy = {
       title: "Appearance",
       dark: "Dark",
       light: "Light",
+      halloween: "Halloween 🎃",
     },
     personalDetails: "Personal details",
     privacy: "Privacy",
     myReports: "My reports",
+    trustedContacts: "Trusted contacts",
     logout: "Log out",
     deleteAccount: "Delete account",
     deleteAccountConfirm: "Are you sure you want to delete your account? This can't be undone.",
+  },
+
+  // 14B. TRUSTED CONTACTS
+  contacts: {
+    title: "Trusted contacts",
+    subtitle: "People we'll notify if a Companion Mode session runs out without you checking in.",
+    emptyState: "You haven't added any trusted contacts yet.",
+    addButton: "Add contact",
+    fields: {
+      name: "Name",
+      email: "Email address",
+    },
+    remove: "Remove",
+    errors: {
+      invalidEmail: "That email address doesn't look quite right.",
+      missingFields: "Enter a name and an email address.",
+      generic: "Something went wrong. Please try again.",
+      maxReached: "You can add up to 3 trusted contacts. Remove one to add another.",
+    },
+    maxReachedNotice: "You've reached the limit of 3 trusted contacts.",
+  },
+
+  // 14C. COMPANION MODE SETUP
+  companionSetup: {
+    title: "Companion Mode",
+    subtitle: "We'll check in on you. If you don't confirm you're safe by your ETA, we'll email your trusted contacts.",
+    noContacts: {
+      title: "Add a trusted contact first",
+      description: "Companion Mode needs at least one trusted contact to notify if something goes wrong.",
+      button: "Add a contact",
+    },
+    destinationLabel: "Destination (optional)",
+    destinationPlaceholder: "e.g. Home, Kreuzberg",
+    durationTitle: "How long until you arrive?",
+    arrivalPreview: "Arrive by {time}",
+    startButton: "Start Companion Mode",
+    errors: {
+      generic: "Could not start your session. Please try again.",
+    },
+  },
+
+  // 14D. COMPANION MODE ACTIVE
+  companionActive: {
+    title: "Companion Mode is on",
+    destinationLabel: "Heading to {destination}",
+    countdownLabel: "Check in by",
+    arrivedButton: "I arrived safely ✅",
+    extendButton: "Extend +10 min",
+    sosButton: "Send SOS now",
+    sosConfirm: {
+      title: "Send an SOS?",
+      description: "This immediately emails your trusted contacts with your last known location.",
+      confirmButton: "Yes, send SOS",
+    },
+    sosSent: "Your contacts have been notified.",
+  },
+
+  // 14E. COMPANION MODE BANNER
+  companionBanner: {
+    active: "Companion Mode active — check in by {time}",
   },
 
   // 15. ERROR STATES
@@ -286,6 +477,8 @@ export const copy = {
   microcopy: {
     back: "Back",
     continue: "Continue",
+    continueWithGoogle: "Continue with Google",
+    orDivider: "or",
     cancel: "Cancel",
     save: "Save",
     edit: "Edit",

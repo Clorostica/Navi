@@ -1,4 +1,3 @@
-import BottomNav from '../components/BottomNav';
 import { copy } from '../content/copy';
 import { useApp } from '../state/AppContext';
 import type { ReportCategory, ReportStatus } from '../types';
@@ -8,7 +7,7 @@ function formatDate(iso: string) {
 }
 
 export default function MyReportsScreen() {
-  const { reports } = useApp();
+  const { reports, viewReport } = useApp();
   const c = copy.myReports;
 
   return (
@@ -21,7 +20,7 @@ export default function MyReportsScreen() {
         ) : (
           <div className="report-list">
             {reports.map((report) => (
-              <div key={report.id} className="report-card">
+              <button key={report.id} type="button" className="report-card" onClick={() => viewReport(report)}>
                 <div className="report-card-top">
                   <span className="report-category">
                     {copy.reportCategory.categories[report.category as ReportCategory].title}
@@ -36,12 +35,11 @@ export default function MyReportsScreen() {
                 <p className="report-meta">
                   {report.id} · {formatDate(report.createdAt)}
                 </p>
-              </div>
+              </button>
             ))}
           </div>
         )}
       </div>
-      <BottomNav />
     </div>
   );
 }

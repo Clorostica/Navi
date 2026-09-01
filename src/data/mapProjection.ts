@@ -6,10 +6,19 @@ export const PROJECTED_WIDTH = 900;
 const lats = allStations.map((s) => s.lat);
 const lons = allStations.map((s) => s.lon);
 
-const minLat = Math.min(...lats) - PADDING_DEG;
-const maxLat = Math.max(...lats) + PADDING_DEG;
-const minLon = Math.min(...lons) - PADDING_DEG;
-const maxLon = Math.max(...lons) + PADDING_DEG;
+export const minLat = Math.min(...lats) - PADDING_DEG;
+export const maxLat = Math.max(...lats) + PADDING_DEG;
+export const minLon = Math.min(...lons) - PADDING_DEG;
+export const maxLon = Math.max(...lons) + PADDING_DEG;
+
+export interface MapBounds {
+  north: number;
+  west: number;
+  south: number;
+  east: number;
+}
+
+export const mapBounds: MapBounds = { north: maxLat, west: minLon, south: minLat, east: maxLon };
 
 const centerLat = (minLat + maxLat) / 2;
 const lonCorrection = Math.cos((centerLat * Math.PI) / 180);

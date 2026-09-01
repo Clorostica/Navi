@@ -1,23 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import ExitAdvisor from './ExitAdvisor';
 import LineBadge from './LineBadge';
+import ReportRow from './ReportRow';
 import { copy } from '../content/copy';
 import type { Station } from '../data/stations';
-import { timeAgo } from '../lib/timeAgo';
-import type { Report, ReportCategory } from '../types';
+import { CATEGORY_COLORS } from '../lib/categories';
+import type { Report, ReportCategory, SafetyBand, SafetyScore } from '../types';
 
-// Fixed, semantic hue per category — never reassigned based on which
-// categories happen to be present, so a color always means the same thing.
-// "other" folds to a neutral gray instead of taking a 9th hue.
-const CATEGORY_COLORS: Record<ReportCategory, string> = {
-  foundItem: '#1baf7a',
-  lostProperty: '#2a78d6',
-  delay: '#eda100',
-  damage: '#eb6834',
-  theft: '#e34948',
-  suspiciousActivity: '#4a3aa7',
-  harassment: '#e87ba4',
-  medical: '#008300',
-  other: '#9b9a94',
+const SAFETY_EMOJI: Record<SafetyBand, string> = {
+  green: '🟢',
+  yellow: '🟡',
+  red: '🔴',
 };
 
 interface CategoryBucket {
@@ -29,12 +22,25 @@ interface CategoryBucket {
 interface StationCloudProps {
   station: Station;
   reports: Report[] | null;
+  safetyScores: Record<string, SafetyScore> | null;
   onClose: () => void;
   onReportHere: () => void;
+  onSelectReport: (report: Report) => void;
 }
 
-export default function StationCloud({ station, reports, onClose, onReportHere }: StationCloudProps) {
-  const [openCategory, setOpenCategory] = useState<ReportCategory | null>(null);
+export default function StationCloud({
+  station,
+  reports,
+  safetyScores,
+  onClose,
+  onReportHere,
+  onSelectReport,
+}: StationCloudProps) {
+  // `safetyScores` itself is null until the one-time fetch resolves; once
+  // loaded, a station simply missing from the map means it has zero
+  // qualifying reports (score 100) rather than being unknown.
+  const safety = safetyScores ? (safetyScores[station.name] ?? { score: 100, band: 'green' as SafetyBand }) : null;
+  const hasSafetyData = safetyScores ? station.name in safetyScores : false;
 
   const breakdown = useMemo<CategoryBucket[]>(() => {
     if (!reports) return [];
@@ -73,31 +79,35 @@ export default function StationCloud({ station, reports, onClose, onReportHere }
         </div>
       </div>
 
+      {safety && (
+        <div className={`station-cloud-safety station-cloud-safety-${safety.band}`}>
+          <span className="station-cloud-safety-emoji" aria-hidden="true">
+            {SAFETY_EMOJI[safety.band]}
+          </span>
+          <span className="station-cloud-safety-score">{safety.score}/100</span>
+          <span className="station-cloud-safety-label">
+            — {hasSafetyData ? copy.stationSafety.labels[safety.band] : copy.stationSafety.labels.noData}
+          </span>
+        </div>
+      )}
+
       <div className="station-cloud-scroll">
         <div className="station-cloud-body">
+          <ExitAdvisor station={station} />
           {reports === null && <p className="helper-text">Loading reports…</p>}
           {reports !== null && total === 0 && <p className="helper-text">No reports here yet.</p>}
 
           {breakdown.length > 0 && (
             <div className="station-cloud-categories">
               {breakdown.map(({ category, items, count }) => {
-                const isOpen = openCategory === category;
                 const color = CATEGORY_COLORS[category];
                 return (
                   <div key={category} className="station-cloud-category">
-                    <button
-                      type="button"
-                      className="station-cloud-category-row"
-                      onClick={() => setOpenCategory(isOpen ? null : category)}
-                      aria-expanded={isOpen}
-                    >
+                    <div className="station-cloud-category-row">
                       <span className="station-cloud-category-dot" style={{ backgroundColor: color }} />
                       <span className="station-cloud-category-name">{copy.reportCategory.categories[category].title}</span>
                       <span className="station-cloud-category-count">{count}</span>
-                      <span className={`station-cloud-category-chevron ${isOpen ? 'open' : ''}`} aria-hidden="true">
-                        ›
-                      </span>
-                    </button>
+                    </div>
                     <div className="station-cloud-category-bar-track">
                       <div
                         className="station-cloud-category-bar-fill"
@@ -105,17 +115,11 @@ export default function StationCloud({ station, reports, onClose, onReportHere }
                       />
                     </div>
 
-                    {isOpen && (
-                      <div className="station-cloud-category-reports">
-                        {items.slice(0, 5).map((report) => (
-                          <div key={report.id} className="station-cloud-report-row">
-                            <span className={`severity-dot severity-${report.severity}`} />
-                            <span className="station-cloud-report-desc">{report.description}</span>
-                            <span className="station-cloud-report-time">{timeAgo(report.createdAt)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <div className="station-cloud-category-reports">
+                      {items.map((report) => (
+                        <ReportRow key={report.id} report={report} onSelect={onSelectReport} />
+                      ))}
+                    </div>
                   </div>
                 );
               })}

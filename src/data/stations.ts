@@ -23,6 +23,10 @@ for (const line of [...uBahnLines, ...sBahnLines]) {
 
 export const allStations: Station[] = [...stationMap.values()].sort((a, b) => a.name.localeCompare(b.name));
 
+export function getStationByName(name: string): Station | undefined {
+  return stationMap.get(name);
+}
+
 export function searchStations(query: string): Station[] {
   const q = query.trim().toLowerCase();
   if (!q) return allStations;
@@ -33,7 +37,7 @@ function toRad(deg: number) {
   return (deg * Math.PI) / 180;
 }
 
-function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+export function distanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000;
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);

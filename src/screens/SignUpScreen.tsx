@@ -1,17 +1,19 @@
 import { useState, type FormEvent } from 'react';
 import Field from '../components/Field';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import ScreenHeader from '../components/ScreenHeader';
 import { copy } from '../content/copy';
 import { useApp } from '../state/AppContext';
 
 export default function SignUpScreen() {
-  const { navigate, goBack, signUp } = useApp();
+  const { navigate, goBack, signUp, verifyEmailCode, signInWithGoogle } = useApp();
   const c = copy.signup;
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [checkEmail, setCheckEmail] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -51,6 +53,25 @@ export default function SignUpScreen() {
     // status === 'signedIn' navigates to home automatically via context
   };
 
+  const handleVerifyCode = async (event: FormEvent) => {
+    event.preventDefault();
+    setError(null);
+
+    if (!code) {
+      setError(c.errors.missingCode);
+      return;
+    }
+
+    setLoading(true);
+    const result = await verifyEmailCode(code);
+    setLoading(false);
+
+    if (result.status === 'error') {
+      setError(result.error);
+    }
+    // status === 'signedIn' navigates to home automatically via context
+  };
+
   return (
     <div className="screen">
       <ScreenHeader title="" onBack={goBack} />
@@ -59,7 +80,22 @@ export default function SignUpScreen() {
         <p className="subtext">{c.subtext}</p>
 
         {checkEmail ? (
-          <p className="success-text">{c.checkEmail.replace('{email}', email)}</p>
+          <form className="form" onSubmit={handleVerifyCode}>
+            <p className="success-text">{c.checkEmail.replace('{email}', email)}</p>
+            <Field
+              label={c.fields.code}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              autoComplete="one-time-code"
+              inputMode="numeric"
+            />
+
+            {error && <p className="error-text">{error}</p>}
+
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? copy.microcopy.loading : c.verifyButton}
+            </button>
+          </form>
         ) : (
           <form className="form" onSubmit={handleSubmit}>
             <Field label={c.fields.name} value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
@@ -94,6 +130,13 @@ export default function SignUpScreen() {
               {loading ? copy.microcopy.loading : c.button}
             </button>
           </form>
+        )}
+
+        {!checkEmail && (
+          <>
+            <div className="divider">{copy.microcopy.orDivider}</div>
+            <GoogleSignInButton onClick={signInWithGoogle} />
+          </>
         )}
 
         <button type="button" className="link-button" onClick={() => navigate('login')}>

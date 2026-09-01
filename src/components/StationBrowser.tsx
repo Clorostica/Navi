@@ -3,15 +3,23 @@ import LineBadge from './LineBadge';
 import { sBahnLines } from '../data/berlinSBahn';
 import { uBahnLines } from '../data/berlinUBahn';
 import { allStations, searchStations, type Station } from '../data/stations';
+import type { SafetyBand, SafetyScore } from '../types';
 
 const stationByName = new Map(allStations.map((s) => [s.name, s]));
 
+const SAFETY_EMOJI: Record<SafetyBand, string> = {
+  green: '🟢',
+  yellow: '🟡',
+  red: '🔴',
+};
+
 interface StationBrowserProps {
-  onSelect: (station: Station) => void;
+  onSelect: (station: Station, opts?: { isSearchResult?: boolean }) => void;
   placeholder?: string;
   initialLine?: string | null;
   onLineChange?: (lineId: string | null) => void;
   onClose?: () => void;
+  safetyScores?: Record<string, SafetyScore> | null;
 }
 
 export default function StationBrowser({
@@ -20,6 +28,7 @@ export default function StationBrowser({
   initialLine = null,
   onLineChange,
   onClose,
+  safetyScores = null,
 }: StationBrowserProps) {
   const [query, setQuery] = useState('');
   const [activeLine, setActiveLine] = useState<string | null>(initialLine);
@@ -51,10 +60,22 @@ export default function StationBrowser({
     return q ? searchStations(query) : [];
   }, [query, activeLineDef]);
 
-  // A line filter alone is meant to be browsed on the map (which isolates and
-  // fits that line) — the long station list is only worth showing once
-  // there's an actual name to search for.
   const hasQuery = query.trim().length > 0;
+  // A line filter shows its full station list immediately (not just on the
+  // map) — you shouldn't have to type a name you don't know yet just to see
+  // what's on the line you already picked.
+  const showResults = hasQuery || Boolean(activeLineDef);
+
+  // Pressing Enter jumps straight to a match instead of forcing a tap on the
+  // results list — an exact (case-insensitive) name match wins if there is
+  // one, otherwise the top result in the current list.
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || !hasQuery || results.length === 0) return;
+    e.preventDefault();
+    const q = query.trim().toLowerCase();
+    const best = results.find((s) => s.name.toLowerCase() === q) ?? results[0];
+    onSelect(best, { isSearchResult: true });
+  };
 
   return (
     <div className="station-browser">
@@ -70,6 +91,7 @@ export default function StationBrowser({
             placeholder={placeholder}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleInputKeyDown}
           />
         </div>
         {onClose && (
@@ -110,14 +132,7 @@ export default function StationBrowser({
           ))}
         </div>
 
-        {activeLineDef && !hasQuery && (
-          <p className="station-browser-count">
-            {results.length} {results.length === 1 ? 'station' : 'stations'} on {activeLineDef.id} — tap one on the
-            map
-          </p>
-        )}
-
-        {hasQuery && (
+        {showResults && (
           <div className="station-browser-results">
             {activeLineDef && (
               <p className="station-browser-count">
@@ -125,16 +140,41 @@ export default function StationBrowser({
               </p>
             )}
             {results.length === 0 && <p className="helper-text">No stations found. Try a different name.</p>}
-            {results.map((station) => (
-              <button key={station.name} type="button" className="station-item" onClick={() => onSelect(station)}>
-                <span className="station-item-name">{station.name}</span>
-                <span className="station-item-lines">
-                  {station.lines.map((lineId) => (
-                    <LineBadge key={lineId} lineId={lineId} size="sm" />
-                  ))}
-                </span>
-              </button>
-            ))}
+            {results.map((station) => {
+              // Safety is only surfaced for a plain name search — a line
+              // filter is about "where does this line go," not "is it safe,"
+              // so mixing the two in one list would be more than a user
+              // scanning line stops needs to take in at once.
+              // A station missing from the map has zero qualifying reports
+              // (score 100), matching how the station detail panel treats it.
+              const safety =
+                !activeLineDef && safetyScores
+                  ? (safetyScores[station.name] ?? { score: 100, band: 'green' as SafetyBand })
+                  : undefined;
+              return (
+                <button
+                  key={station.name}
+                  type="button"
+                  className="station-item"
+                  onClick={() => onSelect(station, { isSearchResult: hasQuery })}
+                >
+                  <span className="station-item-name">{station.name}</span>
+                  <span className="station-item-meta">
+                    {safety && (
+                      <span className={`station-item-safety station-item-safety-${safety.band}`}>
+                        <span aria-hidden="true">{SAFETY_EMOJI[safety.band]}</span>
+                        {safety.score}
+                      </span>
+                    )}
+                    <span className="station-item-lines">
+                      {station.lines.map((lineId) => (
+                        <LineBadge key={lineId} lineId={lineId} size="sm" />
+                      ))}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

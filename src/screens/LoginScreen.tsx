@@ -1,16 +1,17 @@
 import { useState, type FormEvent } from 'react';
 import Field from '../components/Field';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import ScreenHeader from '../components/ScreenHeader';
 import { copy } from '../content/copy';
 import { useApp } from '../state/AppContext';
 
 export default function LoginScreen() {
-  const { navigate, goBack, signIn } = useApp();
+  const { navigate, goBack, signIn, signInWithGoogle, googleAuthError } = useApp();
   const c = copy.login;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(googleAuthError);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event: FormEvent) => {
@@ -57,7 +58,7 @@ export default function LoginScreen() {
 
           {error && <p className="error-text">{error}</p>}
 
-          <button type="button" className="link-button align-end">
+          <button type="button" className="link-button align-end" onClick={() => navigate('forgotPassword')}>
             {c.forgotPassword}
           </button>
 
@@ -65,6 +66,9 @@ export default function LoginScreen() {
             {loading ? copy.microcopy.loading : c.button}
           </button>
         </form>
+
+        <div className="divider">{copy.microcopy.orDivider}</div>
+        <GoogleSignInButton onClick={signInWithGoogle} />
 
         <button type="button" className="link-button" onClick={() => navigate('signup')}>
           New to Navi? Create an account

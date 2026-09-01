@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import BottomNav from '../components/BottomNav';
 import { copy } from '../content/copy';
 import { useApp } from '../state/AppContext';
 import { useTheme } from '../state/ThemeContext';
@@ -42,6 +41,14 @@ export default function ProfileScreen() {
           >
             {c.appearance.light}
           </button>
+          <button
+            type="button"
+            className={`theme-toggle-option ${theme === 'halloween' ? 'active' : ''}`}
+            aria-pressed={theme === 'halloween'}
+            onClick={() => setTheme('halloween')}
+          >
+            {c.appearance.halloween}
+          </button>
         </div>
 
         <div className="menu-list">
@@ -53,6 +60,9 @@ export default function ProfileScreen() {
           </button>
           <button type="button" className="menu-item" onClick={() => navigate('myReports')}>
             {c.myReports}
+          </button>
+          <button type="button" className="menu-item" onClick={() => navigate('contacts')}>
+            {c.trustedContacts}
           </button>
           <button type="button" className="menu-item" onClick={logOut}>
             {c.logout}
@@ -75,7 +85,6 @@ export default function ProfileScreen() {
           )}
         </div>
       </div>
-      <BottomNav />
     </div>
   );
 }

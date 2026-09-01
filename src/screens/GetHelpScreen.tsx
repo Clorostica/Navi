@@ -56,6 +56,11 @@ export default function GetHelpScreen() {
               onClick={() => handleQuickReport('theft')}
             />
             <OptionCard
+              title={c.options.companion.title}
+              description={c.options.companion.description}
+              onClick={() => navigate('companionSetup')}
+            />
+            <OptionCard
               title={c.options.immediateDanger.title}
               description={c.options.immediateDanger.description}
               tone="high"

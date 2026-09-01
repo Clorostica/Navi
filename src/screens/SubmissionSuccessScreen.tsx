@@ -16,7 +16,7 @@ export default function SubmissionSuccessScreen() {
         <button type="button" className="btn btn-primary" onClick={() => navigate('myReports')}>
           {c.viewReports}
         </button>
-        <button type="button" className="btn btn-secondary" onClick={() => navigate('home')}>
+        <button type="button" className="btn btn-secondary" onClick={() => navigate('feed')}>
           {c.backHome}
         </button>
       </div>

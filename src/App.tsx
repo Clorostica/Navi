@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
+import BottomNav from './components/BottomNav';
+import CompanionBanner from './components/CompanionBanner';
 import PhoneFrame from './components/PhoneFrame';
 import PixelSwap from './components/PixelSwap';
 import { copy } from './content/copy';
+import CompanionActiveScreen from './screens/CompanionActiveScreen';
+import CompanionSetupScreen from './screens/CompanionSetupScreen';
+import ContactsScreen from './screens/ContactsScreen';
+import FeedScreen from './screens/FeedScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import GetHelpScreen from './screens/GetHelpScreen';
 import HighSeverityWarningScreen from './screens/HighSeverityWarningScreen';
 import HomeScreen from './screens/HomeScreen';
@@ -9,9 +16,12 @@ import LocationScreen from './screens/LocationScreen';
 import LoginScreen from './screens/LoginScreen';
 import MyReportsScreen from './screens/MyReportsScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import RadarScreen from './screens/RadarScreen';
 import ReportCategoryScreen from './screens/ReportCategoryScreen';
+import ReportDetailScreen from './screens/ReportDetailScreen';
 import ReportDetailsScreen from './screens/ReportDetailsScreen';
 import ReportReviewScreen from './screens/ReportReviewScreen';
+import ResetPasswordScreen from './screens/ResetPasswordScreen';
 import SeverityScreen from './screens/SeverityScreen';
 import SignUpScreen from './screens/SignUpScreen';
 import SubmissionSuccessScreen from './screens/SubmissionSuccessScreen';
@@ -21,11 +31,14 @@ import { ThemeProvider } from './state/ThemeContext';
 import type { Screen } from './types';
 import './App.css';
 
+const TAB_SCREENS = new Set<Screen>(['feed', 'home', 'myReports', 'profile']);
+
 const screens: Record<Screen, () => React.ReactElement> = {
   welcome: WelcomeScreen,
   signup: SignUpScreen,
   login: LoginScreen,
   home: HomeScreen,
+  feed: FeedScreen,
   reportCategory: ReportCategoryScreen,
   location: LocationScreen,
   reportDetails: ReportDetailsScreen,
@@ -34,8 +47,15 @@ const screens: Record<Screen, () => React.ReactElement> = {
   reportReview: ReportReviewScreen,
   submissionSuccess: SubmissionSuccessScreen,
   getHelp: GetHelpScreen,
+  radar: RadarScreen,
   myReports: MyReportsScreen,
+  reportDetail: ReportDetailScreen,
   profile: ProfileScreen,
+  forgotPassword: ForgotPasswordScreen,
+  resetPassword: ResetPasswordScreen,
+  contacts: ContactsScreen,
+  companionSetup: CompanionSetupScreen,
+  companionActive: CompanionActiveScreen,
 };
 
 function LoadingScreen() {
@@ -117,12 +137,27 @@ function CurrentScreen() {
   return <ScreenComponent />;
 }
 
+function AppShell() {
+  const { screen, companionSession, navigate } = useApp();
+  return (
+    <div className="app-shell">
+      <div className="app-shell-body">
+        <CurrentScreen />
+      </div>
+      {companionSession && screen !== 'companionActive' && (
+        <CompanionBanner session={companionSession} onOpen={() => navigate('companionActive')} />
+      )}
+      {TAB_SCREENS.has(screen) && <BottomNav />}
+    </div>
+  );
+}
+
 function App() {
   return (
     <ThemeProvider>
       <AppProvider>
         <PhoneFrame>
-          <CurrentScreen />
+          <AppShell />
         </PhoneFrame>
       </AppProvider>
     </ThemeProvider>

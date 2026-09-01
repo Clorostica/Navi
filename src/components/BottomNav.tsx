@@ -1,14 +1,26 @@
 import { useApp } from '../state/AppContext';
 import type { Screen } from '../types';
 
-const tabs: { screen: Screen; label: string; icon: string }[] = [
-  { screen: 'home', label: 'Home', icon: '⌂' },
-  { screen: 'myReports', label: 'Reports', icon: '☰' },
+interface Tab {
+  screen: Screen;
+  label: string;
+  icon: string;
+}
+
+const tabs: Tab[] = [
+  { screen: 'feed', label: 'Feed', icon: '⚡' },
+  { screen: 'home', label: 'Map', icon: '⌂' },
+  { screen: 'reportCategory', label: 'Report', icon: '+' },
   { screen: 'profile', label: 'Profile', icon: '◍' },
 ];
 
 export default function BottomNav() {
-  const { screen, navigate } = useApp();
+  const { screen, navigate, resetDraft } = useApp();
+
+  const handleClick = (tab: Tab) => {
+    if (tab.screen === 'reportCategory') resetDraft();
+    navigate(tab.screen);
+  };
 
   return (
     <nav className="bottom-nav">
@@ -17,7 +29,7 @@ export default function BottomNav() {
           key={tab.screen}
           type="button"
           className={`bottom-nav-item ${screen === tab.screen ? 'active' : ''}`}
-          onClick={() => navigate(tab.screen)}
+          onClick={() => handleClick(tab)}
         >
           <span className="bottom-nav-icon" aria-hidden="true">
             {tab.icon}
