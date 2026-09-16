@@ -24,7 +24,15 @@
 	},
 	"triggers": {
 		"crons": ["* * * * *"]
-	}
+	},
+	"durable_objects": {
+		"bindings": [
+			{ "name": "REPORT_PRESENCE", "class_name": "ReportPresenceDO" }
+		]
+	},
+	"migrations": [
+		{ "tag": "v1", "new_sqlite_classes": ["ReportPresenceDO"] }
+	]
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

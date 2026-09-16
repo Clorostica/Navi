@@ -12,8 +12,6 @@ export interface SafetyReportInput {
 	createdAt: string;
 }
 
-// Only these categories signal personal safety — found/lost items, delays,
-// damage, and "other" don't move the score at all.
 const CATEGORY_WEIGHT: Record<string, number> = {
 	theft: 12,
 	harassment: 14,
@@ -27,9 +25,6 @@ const SEVERITY_MULTIPLIER: Record<string, number> = {
 	high: 1.6,
 };
 
-// Exponential half-life: a report today counts fully, 30 days old counts
-// half, ~180 days old is negligible — recent incidents dominate the score
-// without a hard cutoff.
 const RECENCY_HALF_LIFE_DAYS = 30;
 
 const NIGHT_START_HOUR = 22;
@@ -45,8 +40,6 @@ const berlinHourFormatter = new Intl.DateTimeFormat('en-GB', {
 	hourCycle: 'h23',
 });
 
-// Berlin alternates CET/CEST across the year — Intl.DateTimeFormat handles
-// that DST math, a raw UTC offset would drift an hour half the year.
 function berlinHour(date: Date): number {
 	return Number(berlinHourFormatter.format(date));
 }

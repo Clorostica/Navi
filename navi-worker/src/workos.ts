@@ -83,6 +83,30 @@ export async function createUser(
 	return { ok: true, user: body };
 }
 
+export async function updateUserName(
+	env: Env,
+	userId: string,
+	firstName: string,
+): Promise<{ ok: true; user: WorkosUser } | { ok: false; error: string }> {
+	const response = await fetch(`${WORKOS_API_BASE}/user_management/users/${userId}`, {
+		method: 'PUT',
+		headers: {
+			Authorization: `Bearer ${env.WORKOS_API_KEY}`,
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({ first_name: firstName }),
+	});
+
+	const body = (await response.json()) as WorkosUser & WorkosErrorBody;
+
+	if (!response.ok) {
+		console.error('updateUserName failed', response.status, body.code ?? body.error);
+		return { ok: false, error: 'Something went wrong on our end. Please try again.' };
+	}
+
+	return { ok: true, user: body };
+}
+
 export async function authenticateWithPassword(env: Env, { email, password }: { email: string; password: string }): Promise<AuthOutcome> {
 	const response = await fetch(`${WORKOS_API_BASE}/user_management/authenticate`, {
 		method: 'POST',
@@ -110,10 +134,6 @@ export function getGoogleAuthorizationUrl(env: Env): string {
 	const params = new URLSearchParams({
 		client_id: env.WORKOS_CLIENT_ID,
 		provider: 'GoogleOAuth',
-		// Must exactly match a redirect URI registered in the WorkOS dashboard
-		// (registered as `${APP_URL}/callback`) — WorkOS rejects anything else
-		// with a redirect-uri-invalid error before the user even sees Google's
-		// consent screen.
 		redirect_uri: `${env.APP_URL}/callback`,
 		response_type: 'code',
 	});

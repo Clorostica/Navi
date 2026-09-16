@@ -1,3 +1,20 @@
+function escapeHtml(value: string): string {
+	return value.replace(/[&<>"']/g, (char) => {
+		switch (char) {
+			case '&':
+				return '&amp;';
+			case '<':
+				return '&lt;';
+			case '>':
+				return '&gt;';
+			case '"':
+				return '&quot;';
+			default:
+				return '&#39;';
+		}
+	});
+}
+
 export async function sendPasswordResetEmail(env: Env, { to, resetUrl }: { to: string; resetUrl: string }): Promise<boolean> {
 	const response = await fetch('https://api.resend.com/emails', {
 		method: 'POST',
@@ -16,6 +33,52 @@ export async function sendPasswordResetEmail(env: Env, { to, resetUrl }: { to: s
 	if (!response.ok) {
 		const body = await response.text();
 		console.error('sendPasswordResetEmail failed', response.status, body);
+		return false;
+	}
+
+	return true;
+}
+
+export async function sendEscalationEmail(
+	env: Env,
+	{
+		reportId,
+		category,
+		station,
+		severity,
+		description,
+	}: {
+		reportId: string;
+		category: string;
+		station: string;
+		severity: string;
+		description: string;
+	},
+): Promise<boolean> {
+	if (!env.OPERATOR_EMAIL) return false;
+
+	const safeStation = escapeHtml(station);
+	const safeCategory = escapeHtml(category);
+	const safeSeverity = escapeHtml(severity);
+	const safeDescription = escapeHtml(description);
+
+	const response = await fetch('https://api.resend.com/emails', {
+		method: 'POST',
+		headers: {
+			Authorization: `Bearer ${env.RESEND_API_KEY}`,
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({
+			from: env.RESEND_FROM,
+			to: [env.OPERATOR_EMAIL],
+			subject: `Navi report ${reportId} escalated — ${safeStation}`,
+			html: `<p>A Navi rider escalated report <strong>${reportId}</strong> for operator attention.</p><p><strong>Station:</strong> ${safeStation}<br/><strong>Category:</strong> ${safeCategory}<br/><strong>Severity:</strong> ${safeSeverity}</p><p>${safeDescription}</p>`,
+		}),
+	});
+
+	if (!response.ok) {
+		const body = await response.text();
+		console.error('sendEscalationEmail failed', response.status, body);
 		return false;
 	}
 

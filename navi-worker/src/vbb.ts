@@ -44,12 +44,6 @@ export async function fetchLiveTrains(bbox: RadarBbox): Promise<LiveTrain[]> {
 		url.searchParams.set('frames', '1');
 		url.searchParams.set('polylines', 'false');
 
-		// The upstream radar endpoint is inconsistently slow — the same query
-		// has been observed responding in under 2s and timing out past 15s at
-		// different moments. 5s was cutting off a large share of otherwise-
-		// successful responses; the frontend already polls every 15s and treats
-		// an empty result as "no live trains right now" rather than an error,
-		// so it's safe to wait longer before giving up.
 		const response = await fetch(url, { signal: AbortSignal.timeout(12000) });
 		if (!response.ok) {
 			console.error('vbb radar failed', response.status);
@@ -69,11 +63,6 @@ export async function fetchLiveTrains(bbox: RadarBbox): Promise<LiveTrain[]> {
 			if (!product || !LIVE_PRODUCTS.has(product) || !line || lat === undefined || lon === undefined) {
 				continue;
 			}
-			// `movement.trip` is frequently absent from the radar feed, so the
-			// fallback id (line+coords) is our only option — but two distinct
-			// vehicles can't occupy the exact same coordinate, so a repeat id
-			// means the API reported the same movement twice. Drop it rather
-			// than emit a duplicate React key downstream.
 			const id = String(movement.trip ?? `${line}-${lat}-${lon}`);
 			if (seenIds.has(id)) continue;
 			seenIds.add(id);

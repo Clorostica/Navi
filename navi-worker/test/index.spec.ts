@@ -82,3 +82,27 @@ describe("GET /trains/live", () => {
 		vi.unstubAllGlobals();
 	});
 });
+
+describe("GET /reports/:id/watch", () => {
+	it("rejects a connection with no valid access token", async () => {
+		const request = new IncomingRequest("https://example.com/reports/some-report/watch", {
+			headers: { Upgrade: "websocket" },
+		});
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+
+		expect(response.status).toBe(401);
+	});
+
+	it("rejects a garbage token before ever reaching the durable object", async () => {
+		const request = new IncomingRequest("https://example.com/reports/some-report/watch?token=garbage", {
+			headers: { Upgrade: "websocket" },
+		});
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+
+		expect(response.status).toBe(401);
+	});
+});

@@ -1,15 +1,21 @@
 import { jsonResponse, preflightResponse, withCors } from './cors';
 import {
+	addStrike,
 	checkInCompanionSession,
 	createCompanionSession,
 	deleteTrustedContact,
+	escalateReport,
 	extendCompanionSession,
+	flagReport,
 	getActiveCompanionSession,
 	getCompanionSessionForUser,
 	getProfileFullName,
+	getProfileStatus,
 	getReportById,
+	insertComment,
 	insertReport,
 	insertTrustedContact,
+	listCommentsForReport,
 	listFeedReports,
 	listOverdueActiveSessions,
 	listRecentReports,
@@ -19,12 +25,17 @@ import {
 	listTrustedContacts,
 	listUpdatesForReport,
 	markCompanionSessionAlerted,
+	recordReportView,
+	resolveReport,
 	updateCompanionHeartbeat,
 	upsertProfile,
 } from './db';
 import { fetchStationExits } from './exits';
-import { sendCompanionAlertEmail, sendPasswordResetEmail } from './resend';
+import { containsProfanity, containsSpamOrDrugContent } from './profanity';
+export { ReportPresenceDO } from './presence';
+import { sendCompanionAlertEmail, sendEscalationEmail, sendPasswordResetEmail } from './resend';
 import { computeSafetyScores } from './safety';
+import { companionAlertSmsBody, sendSms } from './twilio';
 import { fetchLiveTrains } from './vbb';
 import {
 	authenticateWithCode,
@@ -35,6 +46,7 @@ import {
 	createUser,
 	getGoogleAuthorizationUrl,
 	resetPassword,
+	updateUserName,
 	verifyAccessToken,
 	type AuthOutcome,
 	type WorkosUser,
@@ -168,7 +180,6 @@ export default {
 				await sendPasswordResetEmail(env, { to: email, resetUrl });
 			}
 
-			// Always respond the same way, whether or not the email is registered, so we don't leak account existence.
 			return jsonResponse({ status: 'checkEmail', error: null }, request, 200);
 		}
 
@@ -183,6 +194,22 @@ export default {
 			return jsonResponse({ status: 'reset', error: null }, request, 200);
 		}
 
+		if (pathname === '/profile' && request.method === 'PATCH') {
+			const userId = await requireUserId(request, env);
+			if (!userId) return jsonResponse({ error: 'Unauthorized' }, request, 401);
+
+			const { name } = (await request.json()) as { name: string };
+			const trimmed = name.trim();
+			if (!trimmed) return jsonResponse({ error: 'Enter your name.' }, request, 400);
+
+			const updated = await updateUserName(env, userId, trimmed);
+			if (!updated.ok) return jsonResponse({ error: updated.error }, request, 400);
+
+			await upsertProfile(env, { id: userId, fullName: trimmed });
+
+			return jsonResponse({ user: toNaviUser(updated.user), error: null }, request);
+		}
+
 		if (pathname === '/reports/mine' && request.method === 'GET') {
 			const userId = await requireUserId(request, env);
 			if (!userId) return jsonResponse({ error: 'Unauthorized' }, request, 401);
@@ -195,13 +222,30 @@ export default {
 			const userId = await requireUserId(request, env);
 			if (!userId) return jsonResponse({ error: 'Unauthorized' }, request, 401);
 
+			if ((await getProfileStatus(env, userId)) === 'restricted') {
+				return jsonResponse({ report: null, error: 'Your account is temporarily restricted from posting.' }, request, 403);
+			}
+
 			const body = (await request.json()) as {
 				category: string;
 				station: string;
 				description: string;
 				additionalDetails?: string;
 				severity: string;
+				visibility?: string;
 			};
+
+			const blockedText =
+				containsProfanity(body.description) ||
+				containsSpamOrDrugContent(body.description) ||
+				(body.additionalDetails && (containsProfanity(body.additionalDetails) || containsSpamOrDrugContent(body.additionalDetails)));
+
+			if (blockedText) {
+				await addStrike(env, userId);
+				return jsonResponse({ report: null, error: 'Please remove inappropriate language and try again.' }, request, 400);
+			}
+
+			const visibility = body.visibility === 'authority' || body.visibility === 'both' ? body.visibility : 'community';
 
 			const report = await insertReport(env, {
 				userId,
@@ -210,6 +254,7 @@ export default {
 				description: body.description,
 				additionalDetails: body.additionalDetails,
 				severity: body.severity as never,
+				visibility,
 			});
 
 			return jsonResponse({ report, error: null }, request, 201);
@@ -256,13 +301,122 @@ export default {
 			return jsonResponse({ updates }, request);
 		}
 
+		if (pathname.startsWith('/reports/') && pathname.endsWith('/comments') && request.method === 'GET') {
+			const userId = await requireUserId(request, env);
+			if (!userId) return jsonResponse({ error: 'Unauthorized' }, request, 401);
+
+			const reportId = decodeURIComponent(pathname.slice('/reports/'.length, -'/comments'.length));
+			const report = await getReportById(env, reportId);
+			if (!report) return jsonResponse({ error: 'Not found' }, request, 404);
+
+			await recordReportView(env, { reportId, userId });
+
+			const comments = await listCommentsForReport(env, reportId);
+			return jsonResponse({ comments }, request);
+		}
+
+		if (pathname.startsWith('/reports/') && pathname.endsWith('/comments') && request.method === 'POST') {
+			const userId = await requireUserId(request, env);
+			if (!userId) return jsonResponse({ error: 'Unauthorized' }, request, 401);
+
+			if ((await getProfileStatus(env, userId)) === 'restricted') {
+				return jsonResponse({ error: 'Your account is temporarily restricted from posting.' }, request, 403);
+			}
+
+			const reportId = decodeURIComponent(pathname.slice('/reports/'.length, -'/comments'.length));
+			const report = await getReportById(env, reportId);
+			if (!report) return jsonResponse({ error: 'Not found' }, request, 404);
+
+			const { body: text } = (await request.json()) as { body: string };
+			const trimmed = text?.trim();
+			if (!trimmed) return jsonResponse({ error: 'Comment cannot be empty' }, request, 400);
+			if (trimmed.length > 1000) return jsonResponse({ error: 'Comment is too long' }, request, 400);
+			if (containsProfanity(trimmed) || containsSpamOrDrugContent(trimmed)) {
+				await addStrike(env, userId);
+				return jsonResponse({ error: 'Please remove inappropriate language and try again.' }, request, 400);
+			}
+
+			const fullName = await getProfileFullName(env, userId);
+			const comment = await insertComment(env, { reportId, userId, authorName: fullName ?? 'Rider', body: trimmed });
+			return jsonResponse({ comment }, request, 201);
+		}
+
+		if (pathname.startsWith('/reports/') && pathname.endsWith('/flag') && request.method === 'POST') {
+			const userId = await requireUserId(request, env);
+			if (!userId) return jsonResponse({ error: 'Unauthorized' }, request, 401);
+
+			const reportId = decodeURIComponent(pathname.slice('/reports/'.length, -'/flag'.length));
+			const existing = await getReportById(env, reportId);
+			if (!existing) return jsonResponse({ error: 'Not found' }, request, 404);
+
+			const { flaggedCount } = await flagReport(env, { reportId, userId });
+			return jsonResponse({ flaggedCount, error: null }, request);
+		}
+
+		if (pathname.startsWith('/reports/') && pathname.endsWith('/escalate') && request.method === 'POST') {
+			const userId = await requireUserId(request, env);
+			if (!userId) return jsonResponse({ error: 'Unauthorized' }, request, 401);
+
+			const reportId = decodeURIComponent(pathname.slice('/reports/'.length, -'/escalate'.length));
+			const existing = await getReportById(env, reportId);
+			if (!existing) return jsonResponse({ error: 'Not found' }, request, 404);
+			if (existing.visibility === 'community') {
+				return jsonResponse({ report: null, error: 'This report was not marked for authority escalation.' }, request, 400);
+			}
+
+			const report = await escalateReport(env, reportId);
+			if (report && report.status === 'escalated') {
+				ctx.waitUntil(
+					sendEscalationEmail(env, {
+						reportId: report.id,
+						category: report.category,
+						station: report.station,
+						severity: report.severity,
+						description: report.description,
+					}),
+				);
+			}
+			return jsonResponse({ report, error: null }, request);
+		}
+
+		if (pathname.startsWith('/reports/') && pathname.endsWith('/resolve') && request.method === 'POST') {
+			const userId = await requireUserId(request, env);
+			if (!userId) return jsonResponse({ error: 'Unauthorized' }, request, 401);
+
+			const reportId = decodeURIComponent(pathname.slice('/reports/'.length, -'/resolve'.length));
+			const existing = await getReportById(env, reportId);
+			if (!existing) return jsonResponse({ error: 'Not found' }, request, 404);
+			if (existing.authorId !== userId) {
+				return jsonResponse({ report: null, error: 'Only the person who filed this report can mark it resolved.' }, request, 403);
+			}
+
+			const report = await resolveReport(env, reportId);
+			return jsonResponse({ report, error: null }, request);
+		}
+
+		if (pathname.startsWith('/reports/') && pathname.endsWith('/watch') && request.method === 'GET') {
+			const userId = await verifyAccessToken(env, url.searchParams.get('token') ?? '');
+			if (!userId) return new Response('Unauthorized', { status: 401 });
+
+			const reportId = decodeURIComponent(pathname.slice('/reports/'.length, -'/watch'.length));
+			const report = await getReportById(env, reportId);
+			if (!report) return new Response('Not found', { status: 404 });
+
+			const id = env.REPORT_PRESENCE.idFromName(reportId);
+			const stub = env.REPORT_PRESENCE.get(id);
+			return stub.fetch(request);
+		}
+
 		if (pathname.startsWith('/reports/') && request.method === 'GET') {
 			const userId = await requireUserId(request, env);
 			if (!userId) return jsonResponse({ error: 'Unauthorized' }, request, 401);
 
 			const reportId = decodeURIComponent(pathname.slice('/reports/'.length));
+			const existing = await getReportById(env, reportId);
+			if (!existing) return jsonResponse({ error: 'Not found' }, request, 404);
+
+			await recordReportView(env, { reportId, userId });
 			const report = await getReportById(env, reportId);
-			if (!report) return jsonResponse({ error: 'Not found' }, request, 404);
 			return jsonResponse({ report }, request);
 		}
 
@@ -301,8 +455,6 @@ export default {
 
 			const exits = await fetchStationExits(lat, lon);
 			const response = jsonResponse({ exits }, request);
-			// Station entrances and nearby police stations change on the order
-			// of years, not minutes — cache hard to avoid hammering Overpass.
 			response.headers.set('Cache-Control', 'public, max-age=604800');
 			ctx.waitUntil(cache.put(cacheKey, response.clone()));
 			return response;
@@ -339,9 +491,13 @@ export default {
 			const userId = await requireUserId(request, env);
 			if (!userId) return jsonResponse({ error: 'Unauthorized' }, request, 401);
 
-			const { name, email } = (await request.json()) as { name: string; email: string };
+			const { name, email, phone } = (await request.json()) as { name: string; email: string; phone?: string };
 			if (!name?.trim() || !email?.includes('@')) {
 				return jsonResponse({ error: 'Enter a name and a valid email address.' }, request, 400);
+			}
+			const trimmedPhone = phone?.trim() || null;
+			if (trimmedPhone && !/^\+?[0-9\s-]{7,20}$/.test(trimmedPhone)) {
+				return jsonResponse({ error: "That phone number doesn't look quite right." }, request, 400);
 			}
 
 			const existingContacts = await listTrustedContacts(env, userId);
@@ -349,7 +505,7 @@ export default {
 				return jsonResponse({ error: 'You can add up to 3 trusted contacts. Remove one to add another.' }, request, 400);
 			}
 
-			const contact = await insertTrustedContact(env, { userId, name: name.trim(), email: email.trim() });
+			const contact = await insertTrustedContact(env, { userId, name: name.trim(), email: email.trim(), phone: trimmedPhone });
 			return jsonResponse({ contact }, request, 201);
 		}
 
@@ -426,16 +582,33 @@ export default {
 			const mapsUrl = lat != null && lon != null ? `https://maps.google.com/?q=${lat},${lon}` : null;
 			ctx.waitUntil(
 				Promise.all(
-					contacts.map((c) =>
-						sendCompanionAlertEmail(env, {
-							to: c.email,
-							userName: userName ?? 'Your contact',
-							destinationLabel: session.destinationLabel,
-							overdueMinutes: 0,
-							mapsUrl,
-							reason: 'sos',
-						}),
-					),
+					contacts.flatMap((c) => {
+						const tasks = [
+							sendCompanionAlertEmail(env, {
+								to: c.email,
+								userName: userName ?? 'Your contact',
+								destinationLabel: session.destinationLabel,
+								overdueMinutes: 0,
+								mapsUrl,
+								reason: 'sos',
+							}),
+						];
+						if (c.phone) {
+							tasks.push(
+								sendSms(env, {
+									to: c.phone,
+									body: companionAlertSmsBody({
+										userName: userName ?? 'Your contact',
+										destinationLabel: session.destinationLabel,
+										overdueMinutes: 0,
+										mapsUrl,
+										reason: 'sos',
+									}),
+								}),
+							);
+						}
+						return tasks;
+					}),
 				),
 			);
 			return jsonResponse({ ok: true }, request);
@@ -462,16 +635,33 @@ export default {
 						session.lastLat != null && session.lastLon != null ? `https://maps.google.com/?q=${session.lastLat},${session.lastLon}` : null;
 
 					await Promise.all(
-						contacts.map((c) =>
-							sendCompanionAlertEmail(env, {
-								to: c.email,
-								userName: userName ?? 'Your contact',
-								destinationLabel: session.destinationLabel,
-								overdueMinutes,
-								mapsUrl,
-								reason: 'timeout',
-							}),
-						),
+						contacts.flatMap((c) => {
+							const tasks = [
+								sendCompanionAlertEmail(env, {
+									to: c.email,
+									userName: userName ?? 'Your contact',
+									destinationLabel: session.destinationLabel,
+									overdueMinutes,
+									mapsUrl,
+									reason: 'timeout',
+								}),
+							];
+							if (c.phone) {
+								tasks.push(
+									sendSms(env, {
+										to: c.phone,
+										body: companionAlertSmsBody({
+											userName: userName ?? 'Your contact',
+											destinationLabel: session.destinationLabel,
+											overdueMinutes,
+											mapsUrl,
+											reason: 'timeout',
+										}),
+									}),
+								);
+							}
+							return tasks;
+						}),
 					);
 				}),
 			),

@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { computeSafetyScores, type SafetyReportInput } from '../src/safety';
 
-// Noon UTC in mid-July is safely inside Berlin daytime (CEST, UTC+2) —
-// avoids the night window and DST edge cases in the fixtures below.
 const NOON_BERLIN_SUMMER = new Date('2026-07-15T10:00:00Z');
 
 function reportAt(overrides: Partial<SafetyReportInput> & { station: string }): SafetyReportInput {
